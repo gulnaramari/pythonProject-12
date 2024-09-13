@@ -1,5 +1,5 @@
 import pandas as pd
-
+import datetime
 
 def fetch_user_data(path_file: str) -> list[dict]:
     """ Читает xlsx файл и возвращает список словарей"""
