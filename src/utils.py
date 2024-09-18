@@ -1,56 +1,51 @@
 import datetime
+import json
 import logging
 import os
+
 import pandas as pd
-from dotenv import load_dotenv
-import json
 import requests
-import urllib.request
+from dotenv import load_dotenv
 
+from config import PATH_TO_XLSX
 
-load_dotenv(".env")
+load_dotenv()
 
-# Проверка загрузки API_KEY
-api_key = os.getenv("API_KEY")
-print(" ")
-
-# Проверка загрузки API_KEY_C
-API_KEY_C = os.getenv("API_KEY_C")
-print("")
+API_KEY = os.getenv("API_KEY")
 
 API_KEY_SP = os.getenv("API_KEY_SP")
-print(" ")
 
-logger = logging.getLogger("utils.log")
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s: %(filename)s: %(levelname)s: %(message)s",
-    filename="../logs/utils.log",
-    filemode="w",
-)
+df = pd.read_excel(PATH_TO_XLSX)
+df.columns = [
+    "Transaction date",
+    "Payment date",
+    "Card number",
+    "Status",
+    "Transaction amount",
+    "Transaction currency",
+    "Payment amount",
+    "Payment currency",
+    "Cashback",
+    "Category",
+    "MCC",
+    "Description",
+    "Bonuses (including cashback)",
+    "Rounding to the investment bank",
+    "The amount of the operation with rounding",
+]
 
-
-def fetch_user_data(path_file: str) -> list[dict]:
-    """ Читает xlsx файл и возвращает список словарей"""
-    df = pd.read_excel(path_file)
-
-    result = df.apply(
-        lambda row: {
-            "Дата платежа": row["Дата платежа"],
-            "Статус": row["Статус"],
-            "Сумма платежа": row["Сумма платежа"],
-            "Валюта платежа": row["Валюта платежа"],
-            "Категория": row["Категория"],
-            "Описание": row["Описание"],
-            "Номер карты": row["Номер карты"],
-        },
-        axis=1,
-    ).tolist()
-    return result
+# Настройки логера
+utils_logger = logging.getLogger("utils")
+file_handler = logging.FileHandler("utils.log", "w", encoding="utf-8")
+file_formatter = logging.Formatter("%(asctime)s %(filename)s %(levelname)s: %(message)s")
+file_handler.setFormatter(file_formatter)
+utils_logger.addHandler(file_handler)
+utils_logger.setLevel(logging.INFO)
 
 
 def greeting_twenty_four_hours():
     """Приветствие"""
+    utils_logger.info("Beginning of the work...")
     dict_all = {"greeting": ("доброе утро", "добрый день", "добрый вечер", "доброй ночи")}
     current_time = datetime.datetime.now()
     if current_time.hour >= 4 and current_time.hour <= 12:
@@ -66,55 +61,78 @@ def greeting_twenty_four_hours():
 
 def analyze_dict_user_card(all_data: list) -> list:
     """Создает словарь по каждой карте"""
-    logger.info("Beginning of the work...")
-    cards = {}
-    result = []
-
+    utils_logger.info("Beginning of the work...")
     try:
-        for i in all_data:
-            if i["Номер карты"] == "nan" or type(i["Номер карты"]) is float:
-                continue
-            elif i["Сумма платежа"] == "nan":
-                continue
-            else:
-                if i["Номер карты"][1:] in cards:
-                    cards[i["Номер карты"][1:]] += float(str(i["Сумма платежа"])[1:])
-                else:
-                    cards[i["Номер карты"][1:]] = float(str(i["Сумма платежа"])[1:])
-        for key, value in cards.items():
-            result.append({"last_digits": key, "total_spent": round(value, 2), "cashback": round(value/ 100, 2)})
-    except FileNotFoundError:
-        logger.warning("File not found. Incorrect path to file")
-        print("Файл не найден")
-        return []
-    logger.info("The work is completed")
-    return result
+        date_string_dt_obj = datetime.datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S").date()
+        start_date_for_sorting = date_string_dt_obj.replace(day=1)
+        edited_df = DataFrame.drop(
+            [
+                "Payment date",
+                "Transaction currency",
+                "Payment amount",
+                "Payment currency",
+                "Cashback",
+                "Category",
+                "MCC",
+                "Description",
+                "Bonuses (including cashback)",
+                "Rounding to the investment bank",
+                "The amount of the operation with rounding",
+            ],
+            axis=1,
+        )
+        edited_df["Transaction date"] = edited_df["Transaction date"].apply(
+            lambda x: datetime.datetime.strptime(f"{x}", "%d.%m.%Y %H:%M:%S").date()
+        )
+        filtered_df_by_date = edited_df.loc[
+            (edited_df["Transaction date"] <= date_string_dt_obj)
+            & (edited_df["Transaction date"] >= start_date_for_sorting)
+            & (edited_df["Card number"].notnull())
+            & (edited_df["Transaction amount"] <= 0)
+            & (edited_df["Status"] != "FAILED")
+            ]
+        grouped_df = filtered_df_by_date.groupby(["Card number"], as_index=False).agg({"Transaction amount": "sum"})
+        data_list = []
+        for index, row in grouped_df.iterrows():
+            data_dict = {
+                "Card number": row["Card number"].replace("*", ""),
+                "Transaction amount": round(row["Transaction amount"], 2),
+                "cashback": round(row["Transaction amount"] / 100, 2),
+            }
+            data_list.append(data_dict)
+        utils_logger.info("Данные по картам успешно сформированны")
+        return data_list
+    except ValueError:
+        print("Неверный формат даты")
+        utils_logger.error("Ошибка ввода данных: неверный формат даты")
 
+def fetch_currency_rates_values(currency_list: list[str]) -> dict[str, [str | int]]:
+    """Функция получения курса валют через API"""
+    utils_logger.info("Beginning of the work...")
 
-def fetch_currency_rates_values(currency: list) -> list[dict]:
-    """Функция запроса курса валют"""
-    logger.info("Начало работы функции (currency_rates)")
-    api_key = API_KEY_C
-    result = []
-    for i in currency:
-        url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/{i}"
-        with urllib.request.urlopen(url) as response:
-            body_json = response.read()
-        body_dict = json.loads(body_json)
-        result.append({"currency": i, "rate": round(body_dict["conversion_rates"]["RUB"], 2)})
-
-    logger.info("Создание списка словарей для функции - currency_rates")
-
-    logger.info("Окончание работы функции - currency_rates")
-    return result
+    url = "https://api.apilayer.com/exchangerates_data/latest"
+    headers = {"apikey": f"{API_KEY}"}
+    currency_rate_dict = {}
+    for currency in currency_list:
+        payload = {"symbols": "RUB", "base": f"{currency}"}
+        response = requests.get(url, headers=headers, params=payload)
+        status_code = response.status_code
+        if status_code == 200:
+            result = response.json()
+            currency_rate_dict = {"currency": f"{result['base']}", "rate": f"{result['rates']['RUB']}"}
+        else:
+            print(f"Запрос не был успешным.")
+            utils_logger.info("Запрос не удался")
+    utils_logger.info("Данные по курсу валют успешно получены")
+    return currency_rate_dict
 
 
 def top_user_transactions(my_list: list) -> list:
     """Функция для получения топ-5 транзакций по сумме платежа"""
-    logger.info("Начало работы функции (top_five_transaction)")
+    utils_logger.info("Beginning of the work...")
     all_transactions = {}
     result = []
-    logger.info("Перебор транзакций в функции (top_five_transaction)")
+    utils_logger.info("Перебор транзакций в функции (top_five_transaction)")
     for i in my_list:
         if i["Категория"] not in all_transactions and str(i["Сумма платежа"])[0:1] != "-":
             if i["Категория"] != "Пополнения":
@@ -128,31 +146,30 @@ def top_user_transactions(my_list: list) -> list:
         for k, v in all_transactions.items():
             if k == i["Категория"] and v == float(str(i["Сумма платежа"])[1:]):
                 result.append({"date": i["Дата платежа"], "amount": v, "category": k, "description": i["Описание"]})
-    logger.info("Окончание работы функции (top_five_transaction)")
+    utils_logger.info("Окончание работы функции (top_five_transaction)")
 
     return result
 
 
-def fetch_stock_prices_values(stocks: list) -> list:
+def fetch_stock_prices_values(stocks: list) -> list[dict]:
     """Функция для получения данных об акциях из списка S&P500"""
-    logger.info("Начало работы функции (get_price_stock)")
+    utils_logger.info("Beginning of the work...")
     api_key = API_KEY_SP
     stock_prices = []
-    logger.info("Функция обрабатывает данные транзакций.")
+    utils_logger.info("Функция обрабатывает данные транзакций.")
     for stock in stocks:
-        logger.info("Перебор акций в списке 'stocks' в функции (get_price_stock)")
+        utils_logger.info("Перебор акций в списке 'stocks' в функции (get_price_stock)")
         url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={stock}&apikey={api_key}"
         response = requests.get(url, timeout=5, allow_redirects=False)
         result = response.json()
-
         stock_prices.append({"stock": stock, "price": round(float(result["Global Quote"]["05. price"]), 2)})
-    logger.info("Функция get_price_stock успешно завершила свою работу")
+    utils_logger.info("")
     return stock_prices
 
 
-
-
 if __name__ == "__main__":
-    result = fetch_user_data("..\\data\\operations.xlsx")
+    print(df)
+    result = fetch_currency_rates_values(["USD"])
     print(result)
-
+    result_sp = fetch_stock_prices_values(["AAPL", "AMZN", "GOOGL", "MSFT", "TSLA"])
+    print(result_sp)
