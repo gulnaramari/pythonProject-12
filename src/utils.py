@@ -2,11 +2,9 @@ import datetime
 import json
 import logging
 import os
-
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-
 from config import PATH_TO_XLSX
 
 load_dotenv()
@@ -44,28 +42,29 @@ utils_logger.setLevel(logging.INFO)
 
 
 def greeting_twenty_four_hours():
-    """Приветствие"""
+    """Приветствие пользователя"""
     utils_logger.info("Beginning of the work...")
-    dict_all = {"greeting": ("доброе утро", "добрый день", "добрый вечер", "доброй ночи")}
+    all_greetings = {"greeting": ("доброе утро", "добрый день", "добрый вечер", "доброй ночи")}
     current_time = datetime.datetime.now()
-    if current_time.hour >= 4 and current_time.hour <= 12:
-        greet = dict_all["greeting"][0]
-    elif current_time.hour >= 12 and current_time.hour <= 16:
-        greet = dict_all["greeting"][1]
-    elif current_time.hour >= 16 and current_time.hour <= 24:
-        greet = dict_all["greeting"][2]
+    if 4 <= current_time.hour <= 12:
+        greet = all_greetings["greeting"][0]
+    elif 12 <= current_time.hour <= 16:
+        greet = all_greetings["greeting"][1]
+    elif 16 <= current_time.hour <= 24:
+        greet = all_greetings["greeting"][2]
     else:
-        greet = dict_all["greeting"][3]
+        greet = all_greetings["greeting"][3]
+    utils_logger.info("Finish of work")
     return greet
 
 
-def analyze_dict_user_card(all_data: list) -> list:
-    """Создает словарь по каждой карте"""
+def analyze_dict_user_card(date: str, df) -> list[dict]:
+    """Функция отображения информации о карте в заданном формате"""
     utils_logger.info("Beginning of the work...")
     try:
-        date_string_dt_obj = datetime.datetime.strptime(date_string, "%Y-%m-%d %H:%M:%S").date()
-        start_date_for_sorting = date_string_dt_obj.replace(day=1)
-        edited_df = DataFrame.drop(
+        date_obj = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").date()
+        date_begin = date_obj.replace(day=1)
+        df_work = df.drop(
             [
                 "Payment date",
                 "Transaction currency",
@@ -81,74 +80,94 @@ def analyze_dict_user_card(all_data: list) -> list:
             ],
             axis=1,
         )
-        edited_df["Transaction date"] = edited_df["Transaction date"].apply(
+        df_work["Transaction date"] = df_work["Transaction date"].apply(
             lambda x: datetime.datetime.strptime(f"{x}", "%d.%m.%Y %H:%M:%S").date()
         )
-        filtered_df_by_date = edited_df.loc[
-            (edited_df["Transaction date"] <= date_string_dt_obj)
-            & (edited_df["Transaction date"] >= start_date_for_sorting)
-            & (edited_df["Card number"].notnull())
-            & (edited_df["Transaction amount"] <= 0)
-            & (edited_df["Status"] != "FAILED")
+        filtered_by_date = df_work.loc[
+            (df_work["Transaction date"] <= date_obj)
+            & (df_work["Transaction date"] >= date_begin)
+            & (df_work["Status"] != "FAILED")
             ]
-        grouped_df = filtered_df_by_date.groupby(["Card number"], as_index=False).agg({"Transaction amount": "sum"})
-        data_list = []
-        for index, row in grouped_df.iterrows():
-            data_dict = {
+        print(filtered_by_date)
+        grouped_by_card = filtered_by_date.groupby(["Card number"], as_index=False).agg({"Transaction amount": "sum"})
+        result_list = []
+        for index, row in grouped_by_card.iterrows():
+            result_dict = {
                 "Card number": row["Card number"].replace("*", ""),
                 "Transaction amount": round(row["Transaction amount"], 2),
                 "cashback": round(row["Transaction amount"] / 100, 2),
             }
-            data_list.append(data_dict)
-        utils_logger.info("Данные по картам успешно сформированны")
-        return data_list
+            result_list.append(result_dict)
+        utils_logger.info("Data were successfully generated. Finish of work")
+        return result_list
     except ValueError:
-        print("Неверный формат даты")
-        utils_logger.error("Ошибка ввода данных: неверный формат даты")
+        utils_logger.error("Error: Incorrect data")
+        print("Incorrect data")
 
-def fetch_currency_rates_values(currency_list: list[str]) -> dict[str, [str | int]]:
+
+def fetch_currency_rates_values(currency_list: list[str]) -> list[dict[str, [str | int]]]:
     """Функция получения курса валют через API"""
     utils_logger.info("Beginning of the work...")
 
     url = "https://api.apilayer.com/exchangerates_data/latest"
     headers = {"apikey": f"{API_KEY}"}
-    currency_rate_dict = {}
+    currency_rate_dict = []
     for currency in currency_list:
         payload = {"symbols": "RUB", "base": f"{currency}"}
         response = requests.get(url, headers=headers, params=payload)
         status_code = response.status_code
         if status_code == 200:
-            result = response.json()
-            currency_rate_dict = {"currency": f"{result['base']}", "rate": f"{result['rates']['RUB']}"}
+            result_j = response.json()
+            currency_rate_dict.append({"currency": f"{result_j['base']}", "rate": f"{result_j['rates']['RUB']}"})
         else:
-            print(f"Запрос не был успешным.")
-            utils_logger.info("Запрос не удался")
-    utils_logger.info("Данные по курсу валют успешно получены")
+            utils_logger.info("Ошибка")
+    utils_logger.info("Data were successfully generated. Finish of work")
     return currency_rate_dict
 
 
-def top_user_transactions(my_list: list) -> list:
-    """Функция для получения топ-5 транзакций по сумме платежа"""
-    utils_logger.info("Beginning of the work...")
-    all_transactions = {}
-    result = []
-    utils_logger.info("Перебор транзакций в функции (top_five_transaction)")
-    for i in my_list:
-        if i["Категория"] not in all_transactions and str(i["Сумма платежа"])[0:1] != "-":
-            if i["Категория"] != "Пополнения":
-                all_transactions[i["Категория"]] = float(str(i["Сумма платежа"])[1:])
-        elif (
-                i["Категория"] in all_transactions
-                and float(str(i["Сумма платежа"])[1:]) > all_transactions[i["Категория"]]
-        ):
-            all_transactions[i["Категория"]] = float(str(i["Сумма платежа"])[1:])
-    for i in my_list:
-        for k, v in all_transactions.items():
-            if k == i["Категория"] and v == float(str(i["Сумма платежа"])[1:]):
-                result.append({"date": i["Дата платежа"], "amount": v, "category": k, "description": i["Описание"]})
-    utils_logger.info("Окончание работы функции (top_five_transaction)")
-
-    return result
+def top_user_transactions(date: str, df):
+    """Функция отображения топ 5 транзакций по сумме платежа"""
+    date_string_dt_obj = datetime.datetime.strptime(date, "%Y-%m-%d %H:%M:%S").date()
+    start_date_for_sorting = date_string_dt_obj.replace(day=1)
+    dropped_df = df.drop(
+        [
+            "Payment date",
+            "Card number",
+            "Transaction currency",
+            "Payment amount",
+            "Payment currency",
+            "Cashback",
+            "MCC",
+            "Bonuses (including cashback)",
+            "Rounding to the investment bank",
+            "The amount of the operation with rounding",
+        ],
+        axis=1,
+    )
+    dropped_df["Transaction date"] = dropped_df["Transaction date"].apply(
+        lambda x: datetime.datetime.strptime(f"{x}", "%d.%m.%Y %H:%M:%S").date()
+    )
+    filtered_by_date = dropped_df.loc[
+        (dropped_df["Transaction date"] <= date_string_dt_obj)
+        & (dropped_df["Transaction date"] >= start_date_for_sorting)
+        & (dropped_df["Transaction amount"].notnull())
+        & (dropped_df["Status"] != "FAILED")
+    ]
+    sorted_df_by_transaction_amount = filtered_by_date.sort_values(
+        by=["Transaction amount"], ascending=False, key=lambda x: abs(x)
+    )
+    top_transactions = sorted_df_by_transaction_amount[0:5]
+    data_list = []
+    for index, row in top_transactions.iterrows():
+        data_dict = {
+            "date": row["Transaction date"].strftime("%d.%m.%Y"),
+            "amount": round(row["Transaction amount"], 2),
+            "category": row["Category"],
+            "description": row["Description"],
+        }
+        data_list.append(data_dict)
+    utils_logger.info("Data were successfully generated. Finish of work")
+    return data_list
 
 
 def fetch_stock_prices_values(stocks: list) -> list[dict]:
@@ -156,20 +175,24 @@ def fetch_stock_prices_values(stocks: list) -> list[dict]:
     utils_logger.info("Beginning of the work...")
     api_key = API_KEY_SP
     stock_prices = []
-    utils_logger.info("Функция обрабатывает данные транзакций.")
+    utils_logger.info("Transaction data in work")
     for stock in stocks:
-        utils_logger.info("Перебор акций в списке 'stocks' в функции (get_price_stock)")
+        utils_logger.info("Iterating through stocks in the 'stocks' list")
         url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={stock}&apikey={api_key}"
         response = requests.get(url, timeout=5, allow_redirects=False)
-        result = response.json()
-        stock_prices.append({"stock": stock, "price": round(float(result["Global Quote"]["05. price"]), 2)})
-    utils_logger.info("")
+        res = response.json()
+        stock_prices.append({"stock": stock, "price": round(float(res["Global Quote"]["05. price"]), 2)})
+    utils_logger.info("Data were successfully generated. Finish of work")
     return stock_prices
+
 
 
 if __name__ == "__main__":
     print(df)
-    result = fetch_currency_rates_values(["USD"])
+    print(analyze_dict_user_card("2021-11-14 14:46:24", df))
+    result = fetch_currency_rates_values(["USD","EUR"])
     print(result)
-    result_sp = fetch_stock_prices_values(["AAPL", "AMZN", "GOOGL", "MSFT", "TSLA"])
-    print(result_sp)
+    result_ = top_user_transactions("2021-11-14 14:46:24", df)
+    print(result_)
+
+
