@@ -3,7 +3,6 @@ import json
 import logging
 import os
 from dotenv import load_dotenv
-from config import PATH_TO_XLSX
 from datetime import datetime, timedelta
 import pandas as pd
 import requests
@@ -16,24 +15,6 @@ API_KEY = os.getenv("API_KEY")
 
 API_KEY_SP = os.getenv("API_KEY_SP")
 
-df = pd.read_excel(PATH_TO_XLSX)
-df.columns = [
-    "Transaction date",
-    "Payment date",
-    "Card number",
-    "Status",
-    "Transaction amount",
-    "Transaction currency",
-    "Payment amount",
-    "Payment currency",
-    "Cashback",
-    "Category",
-    "MCC",
-    "Description",
-    "Bonuses (including cashback)",
-    "Rounding to the investment bank",
-    "The amount of the operation with rounding",
-]
 
 utils_logger = logging.getLogger("utils")
 file_handler = logging.FileHandler("../logs/utils.log", "w", encoding="utf-8")
@@ -129,7 +110,7 @@ def analyze_dict_user_card(transactions: list[dict]) -> list[dict]:
                     "cashback": round(data["cashback"], 2),
                 }
             )
-        utils_logger.info("cashback and amounts calculated for each card")
+        utils_logger.info("Cashback and amounts calculated for each card")
         return each_card
     except ValueError:
         utils_logger.error("Error: Incorrect data")
@@ -169,7 +150,7 @@ def fetch_currency_rates_values(currency_list: list[str]) -> list[dict[str, [str
             result_j = response.json()
             currency_rate_dict.append({"currency": f"{result_j['base']}", "rate": f"{result_j['rates']['RUB']}"})
         else:
-            utils_logger.info("Ошибка")
+            utils_logger.info("Error")
     utils_logger.info("Data were successfully generated. Finish of work")
     return currency_rate_dict
 
@@ -190,11 +171,7 @@ def fetch_stock_prices_values(stocks: list) -> list[dict]:
     return stock_prices
 
 
-
 if __name__ == "__main__":
 
     result = fetch_currency_rates_values(["USD","EUR"])
     print(result)
-
-
-
