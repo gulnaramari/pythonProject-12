@@ -1,12 +1,11 @@
 import datetime
-import json
 import logging
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import pandas as pd
 import requests
-from typing import Any
+
 
 
 load_dotenv()
