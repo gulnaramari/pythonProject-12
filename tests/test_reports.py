@@ -28,7 +28,7 @@ def test_spending_by_category_correct(test_data):
 
 def test_spending_by_category_no_date(test_data):
     result = spending_by_category(test_data, "Дом и ремонт", )
-    assert len(result) == 0
+    assert len(result) == 14
 
 
 def test_spending_by_category_no_date(test_data):

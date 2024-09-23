@@ -67,5 +67,5 @@ def spending_by_category(transactions: pd.DataFrame, category: str, date: Any = 
 
 
 if __name__ == "__main__":
-    result = spending_by_category(config.test_data, "Дом и ремонт", "2021.12.28")
+    result = spending_by_category(config.transactions, "Дом и ремонт", "2021.12.28")
     print(result)

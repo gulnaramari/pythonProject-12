@@ -55,3 +55,4 @@ from src.services import analyze_cashback
 def test_analyze_cashback(year, month, transactions, expected_output):
     result = analyze_cashback(year, month, transactions)
     assert result == expected_output
+
