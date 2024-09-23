@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from src.utils import fetch_user_data
+import pytest
 
 PATH_TO_XLSX = os.path.join(os.path.dirname(__file__), 'data', 'operation.xlsx')
 
@@ -10,8 +11,20 @@ API_KEY_SP = os.getenv("API_KEY_SP")
 
 input_date_str = "20.03.2020"
 transactions = fetch_user_data(r"../data/operations.xlsx")
-year = 2020
-month = 5
-date = "2020.05"
-limit = 50
-search = "Перевод"
+year = 2021
+month = 6
+date = "2021.06"
+
+
+@pytest.fixture
+def test_data():
+    data = {
+        "Дата операции": [
+            "30.12.2021 14:48:25",
+            "28.12.2021 18:24:02",
+            ],
+        "Категория": ["Канцтовары", "Дом и ремонт"],
+        "Сумма операции": [550, 17454],
+    }
+    df = pd.DataFrame(data)
+    return df

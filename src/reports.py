@@ -1,76 +1,71 @@
-import datetime
-import json
+import functools
+from datetime import datetime, timedelta
 import logging
-from typing import Any, Callable, Optional
-
+from typing import Any, Callable
 import pandas as pd
+import config
 
-from src.decorator import decorator_spending_by_category
 
-logger = logging.getLogger("report.log")
-file_handler = logging.FileHandler("report.log", "w")
-file_formatter = logging.Formatter("%(asctime)s %(levelname)s: %(message)s")
+reports_logger = logging.getLogger("reports")
+file_handler = logging.FileHandler("../logs/utils.log", "w", encoding="utf-8")
+file_formatter = logging.Formatter("%(asctime)s %(filename)s %(levelname)s: %(message)s")
 file_handler.setFormatter(file_formatter)
-logger.addHandler(file_handler)
-logger.setLevel(logging.INFO)
+reports_logger.addHandler(file_handler)
+reports_logger.setLevel(logging.INFO)
+
+def report_to_file_now(func: Callable) -> Callable:
+    """Записывает в файл результат, который возвращает функция, формирующая отчет."""
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        result = func(*args, **kwargs)
+        with open("function_operation_report.txt", "a") as file:  # Changed to append mode
+            file.write(str(result) + "\n")  # Added newline for better readability
+        reports_logger.info(f"The result of the function {func.__name__} is recorded.")
+        return result
+
+    return wrapper
 
 
-def log_spending_by_category(filename: Any) -> Callable:
-    """Логирует результат функции в указанный файл"""
-
-    def decorator(func: Callable) -> Callable:
+def report_to_file(filename: str = "function_operation_report.txt") -> Callable:
+    """Записывает в переданный файл результат, который возвращает функция, формирующая отчет."""
+    def decorator(func: Callable[[tuple[Any, ...], dict[str, Any]], Any]) -> Callable:
+        @functools.wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> Any:
-            result = func(*args, **kwargs).to_dict("records")
-            with open(filename, "w") as f:
-                json.dump(result, f, indent=4)
+            result = func(*args, **kwargs)
+            with open(filename, "a") as file:
+                file.write(str(result) + "\n")
+            reports_logger.info(f"The result of the function {func.__name__} is recorded to {filename}.")
             return result
-
         return wrapper
-
     return decorator
 
 
-@decorator_spending_by_category
-def spending_by_category(transactions: pd.DataFrame, category: str, date: Optional[str] = None):
-    """Функция возвращающая траты за последние 3 месяца по заданной категории"""
-    logger.info("Начало работы")
-    list_by_category = []
-    final_list = []
+@report_to_file_now
+def spending_by_category(transactions: pd.DataFrame, category: str, date: Any = None) -> Any:
 
-    if date is None:
-        logger.info("Обработка условия на отсутствие")
-        date_start = datetime.datetime.now() - datetime.timedelta(days=90)
-        for i in transactions:
-            if i["Категория"] == category:
-                list_by_category.append(i)
-        for i in list_by_category:
-            if i["Дата платежа"] == "nan" or type(i["Дата платежа"]) is float:
-                continue
-            elif (
-                    date_start
-                    <= datetime.datetime.strptime(str(i["Дата платежа"]), "%d.%m.%Y")
-                    <= date_start + datetime.timedelta(days=90)
-            ):
-                final_list.append(i["Сумма платежа"])
-        return final_list
-    else:
-        day, month, year = date.split(".")
-        date_obj = datetime.datetime(int(year), int(month), int(day))
-        date_begin = date_obj - datetime.timedelta(days=90)
+    try:
+        transactions["Дата операции"] = pd.to_datetime(transactions["Дата операции"], format="%d.%m.%Y %H:%M:%S")
 
-        for i in transactions:
-            if i["Категория"] == category:
-                list_by_category.append(i)
+        if date is None:
+            date = datetime.now()
+        else:
+            date = pd.to_datetime(date, format="%Y.%m.%d")
 
-        for i in list_by_category:
-            if i["Дата платежа"] == "nan" or type(i["Дата платежа"]) is float:
-                continue
-            else:
-                day, month, year = i["Дата платежа"].split(".")
-                date_obj_ = datetime.datetime(int(year), int(month), int(day))
-                if date_begin <= date_obj_ <= date_begin + datetime.timedelta(days=90):
-                    final_list.append(i["Сумма платежа"])
-        logger.info("Завершение работы функции")
-        data_json = json.dumps(final_list, indent=4, ensure_ascii=False, )
+        start_date = date - timedelta(days=date.day - 1) - timedelta(days=90)
+        filtered_transactions = transactions[
+            (transactions["Дата операции"] >= start_date)
+            & (transactions["Дата операции"] <= date)
+            & (transactions["Категория"] == category)
+            ]
 
-        return data_json
+        grouped_transactions = filtered_transactions.groupby(pd.Grouper(key="Дата операции", freq="M")).sum()
+        reports_logger.info(f"Траты за последние три месяца от {date} по категории {category}")
+        return grouped_transactions.to_dict(orient="records")
+
+    except Exception as e:
+        reports_logger.error(f"Ошибка: {e}")
+        return ""
+
+
+if __name__ == "__main__":
+    result = spending_by_category(config.test_data, "Дом и ремонт", "2021.12.28")
+    print(result)

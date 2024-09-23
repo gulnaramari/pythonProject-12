@@ -1,5 +1,4 @@
 import json
-import os
 import logging
 from dotenv import load_dotenv
 from typing import Any
@@ -43,6 +42,6 @@ def main_json(input_date: Any, user_settings: Any) -> Any:
 
 
 if __name__ == "__main__":
-    result = main_json("20.03.2020", user_choice)
+    result = main_json("14.03.2020", user_choice)
     print(result)
 
