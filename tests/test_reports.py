@@ -1,7 +1,21 @@
 import pytest
 import pandas as pd
 from src.reports import spending_by_category
+from src.utils import fetch_user_data
 import config
+
+
+result_all = fetch_user_data("../data/operations.xlsx")
+result_spending = spending_by_category(result_all, "Супермаркеты", date="31.12.2021")
+
+
+@pytest.fixture
+def fix_reports():
+    return result_spending
+
+
+def test_report(fix_reports):
+    assert spending_by_category(result_all, "Переводы", date="31.12.2021") == fix_reports
 
 
 @pytest.fixture

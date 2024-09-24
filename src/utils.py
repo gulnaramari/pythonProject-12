@@ -125,10 +125,10 @@ def top_user_transactions(transactions: list[dict]) -> list[dict]:
         date = datetime.strptime(transaction["Дата операции"], "%d.%m.%Y %H:%M:%S").strftime("%d.%m.%Y")
         top_transactions.append(
             {
-                "date": date,
-                "amount": transaction["Сумма операции"],
-                "category": transaction["Категория"],
-                "description": transaction["Описание"],
+                "Дата операции": date,
+                "Сумма операции": transaction["Сумма операции"],
+                "Категория": transaction["Категория"],
+                "Описание": transaction["Описание"],
             }
         )
     utils_logger.info("Five top transactions received")

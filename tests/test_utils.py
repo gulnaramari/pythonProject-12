@@ -1,12 +1,13 @@
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import patch
-
+from unittest.mock import Mock, patch
+import unittest
 import pandas as pd
 import pytest
 import requests
 
-from src.utils import (filter_transactions_by_date,
+
+from src.utils import (filter_transactions_by_date, fetch_user_data,
                        greeting_twenty_four_hours, analyze_dict_user_card,
                        fetch_currency_rates_values, fetch_stock_prices_values,
                        top_user_transactions)
@@ -31,7 +32,7 @@ def test_get_data_from_xlsx():
     ]
     df = pd.DataFrame(test_data)
     with patch("pandas.read_excel", return_value=df):
-        result = read_excel_to_dict_lict(r"../data/operations.xlsx")
+        result = fetch_user_data(r"../data/operations.xlsx")
         assert result == test_data
 
 
@@ -39,91 +40,103 @@ def test_get_data_from_xlsx():
 def test_transactions():
     return [
         {
-            "Дата операции": "17.12.2021 16:28:23",
-            "Сумма операции": "-229.00",
-            "Категория": "Фастфуд",
-            "Описание": "Evo_Kebab Bar",
+            "Дата операции": "14.11.2021 10:56:53",
+            "Сумма операции": 127.80,
+            "Категория": "Супермаркеты",
+            "Описание": "Перекрёсток",
         },
         {
             "Дата операции": "19.11.2021 11:37:04",
-            "Сумма операции": "-271.40",
+            "Сумма операции": 271.40,
             "Категория": "Косметика",
             "Описание": "Подружка",
         },
         {
             "Дата операции": "16.11.2021 21:40:11",
-            "Сумма операции": "-456.00",
+            "Сумма операции": 456.00,
             "Категория": "Аптеки",
             "Описание": "Аптека Вита",
         },
         {
-            "Дата операции": "14.11.2021 10:56:53",
-            "Сумма операции": "-127.80",
-            "Категория": "Супермаркеты",
-            "Описание": "Перекрёсток",
-        },
-        {
             "Дата операции": "09.11.2021 21:03:50",
-            "Сумма операции": "-1700.00",
+            "Сумма операции": 1700.00,
             "Категория": "Развлечения",
             "Описание": "Kassaramblerrbs",
         },
         {
             "Дата операции": "01.08.2021 22:55:33",
-            "Сумма операции": "-236.79",
+            "Сумма операции": 236.79,
             "Категория": "Супермаркеты",
             "Описание": "Магнит",
-         }
+         },
+        {
+            "Дата операции": "19.08.2021 21:22:58",
+            "Сумма операции": 226.70,
+            "Категория": "Супермаркеты",
+            "Описание": "Магнит",
+        },
     ]
 
 
 @pytest.mark.parametrize(
-    "input_date_str, expected_result",
+    "input_date, expected_result",
     [
         (
-            "19.11.2021",
+            "20.11.2021",
             [
                 {
+                    "Дата операции": "14.11.2021 10:56:53",
+                    "Сумма операции": 127.80,
+                    "Категория": "Супермаркеты",
+                    "Описание": "Перекрёсток",
+                },
+                {
+                    "Дата операции": "19.11.2021 11:37:04",
+                    "Сумма операции": 271.40,
+                    "Категория": "Косметика",
+                    "Описание": "Подружка",
+                },
+                {
                     "Дата операции": "16.11.2021 21:40:11",
-                    "Сумма операции": "-456.00",
+                    "Сумма операции": 456.00,
                     "Категория": "Аптеки",
                     "Описание": "Аптека Вита",
                 },
                 {
                     "Дата операции": "09.11.2021 21:03:50",
-                    "Сумма операции": "-1700.00",
+                    "Сумма операции": 1700.00,
                     "Категория": "Развлечения",
                     "Описание": "Kassaramblerrbs",
-                },
-                {
-                    "Дата операции": "14.11.2021 10:56:53",
-                    "Сумма операции": "-127.80",
-                    "Категория": "Супермаркеты",
-                    "Описание": "Перекрёсток",
                 },
             ],
         ),
         (
-            "15.08.2021",
+            "20.08.2021",
             [
                 {
                     "Дата операции": "01.08.2021 22:55:33",
-                    "Сумма операции": "-236.79",
+                    "Сумма операции": 236.79,
                     "Категория": "Супермаркеты",
                     "Описание": "Магнит",
+                },
+                {
+                   "Дата операции": "19.08.2021 21:22:58",
+                   "Сумма операции": 226.70,
+                   "Категория": "Супермаркеты",
+                   "Описание": "Магнит",
                 },
             ],
         ),
     ],
 )
-def test_filter_transactions_by_date(test_transactions, input_date_str, expected_result):
-    result = filter_transactions_by_date(test_transactions, input_date_str)
+def test_filter_transactions_by_date(test_transactions, input_date, expected_result):
+    result = filter_transactions_by_date(test_transactions, input_date)
     assert result == expected_result
 
 
 @patch("src.utils.datetime")
 @pytest.mark.parametrize(
-    "current_hour, expected_greeting",
+    "actual_time, expected_greeting",
     [
         (7, "Доброе утро"),
         (13, "Добрый день"),
@@ -131,52 +144,46 @@ def test_filter_transactions_by_date(test_transactions, input_date_str, expected
         (2, "Доброй ночи"),
     ],
 )
-def test_greeting(mock_datetime, current_hour, expected_greeting):
-    mock_now = datetime(2023, 6, 20, current_hour, 0, 0)
+def test_greeting_twenty_four_hours(mock_datetime, actual_time, expected_greeting):
+    mock_now = datetime(2021, 2, 9, actual_time, 0, 0)
     mock_datetime.now.return_value = mock_now
-    result = greeting()
+    result = greeting_twenty_four_hours()
     assert result == expected_greeting
 
 
-def test_get_cards_data_empty():
+def test_analyze_dict_user_card_one_correct():
+    transactions = [{"Номер карты": "*4556", "Сумма операции": "-1411.40", "Кэшбэк": "70", "Категория": "Ж/д билеты"}]
+    expected_result = [{"last_digits": "*4556", "total_spent": 1411.40, "cashback": 70.0}]
+    assert analyze_dict_user_card(transactions) == expected_result
+
+
+def test_analyze_dict_user_card_no():
     transactions = []
     expected_result = []
-    assert get_cards_data(transactions) == expected_result
+    assert analyze_dict_user_card(transactions) == expected_result
 
 
-def test_get_cards_data_single_transaction():
-    transactions = [{"Номер карты": "1234", "Сумма операции": "-100.0", "Кэшбэк": "1.0", "Категория": "Продукты"}]
-    expected_result = [{"last_digits": "1234", "total_spent": 100.0, "cashback": 1.0}]
-    assert get_cards_data(transactions) == expected_result
-
-
-def test_get_cards_data_multiple_transactions():
+def test_analyze_dict_user_card_transactions():
     transactions = [
-        {"Номер карты": "1234", "Сумма операции": "-100.0", "Кэшбэк": "1.0", "Категория": "Продукты"},
-        {"Номер карты": "1234", "Сумма операции": "-200.0", "Кэшбэк": "2.0", "Категория": "Продукты"},
-        {"Номер карты": "5678", "Сумма операции": "-50.0", "Кэшбэк": "0.5", "Категория": "Продукты"},
+        {"Номер карты": "*1234", "Сумма операции": "-200.0", "Кэшбэк": "2.0", "Категория": "Продукты"},
+        {"Номер карты": "*7197", "Сумма операции": "-108.00", "Кэшбэк": "1.08", "Категория": "Фастфуд"},
     ]
     expected_result = [
-        {"last_digits": "1234", "total_spent": 300.0, "cashback": 3.0},
-        {"last_digits": "5678", "total_spent": 50.0, "cashback": 0.5},
+        {"last_digits": "*1234", "total_spent": 200.0, "cashback": 2.0},
+        {"last_digits": "*7197", "total_spent": 108.0, "cashback": 1.08},
     ]
-    assert get_cards_data(transactions) == expected_result
+    assert analyze_dict_user_card(transactions) == expected_result
 
 
-def test_get_cards_data_nan_card_number():
+def test_analyze_dict_user_card_no_card_number():
     transactions = [
-        {"Номер карты": "1234", "Сумма операции": "-100.0", "Кэшбэк": "1.0", "Категория": "Продукты"},
-        {"Номер карты": "nan", "Сумма операции": "-200.0", "Кэшбэк": "2.0", "Категория": "Продукты"},
-        {"Номер карты": "5678", "Сумма операции": "-50.0", "Кэшбэк": "0.5", "Категория": "Продукты"},
-    ]
-    expected_result = [
-        {"last_digits": "1234", "total_spent": 100.0, "cashback": 1.0},
-        {"last_digits": "5678", "total_spent": 50.0, "cashback": 0.5},
-    ]
-    assert get_cards_data(transactions) == expected_result
+        {"Номер карты": "", "Сумма операции": 200.0, "Кэшбэк": 2.0, "Категория": "Продукты"},
+             ]
+    expected_result = []
+    assert analyze_dict_user_card(transactions) == expected_result
 
 
-def test_get_cards_data_cashback():
+def test_analyze_dict_user_card_cashback():
     transactions = [
         {"Номер карты": "1234", "Сумма операции": "-100.0", "Категория": "Продукты"},
         {"Номер карты": "5678", "Сумма операции": "-50.0", "Категория": "Продукты"},
@@ -185,16 +192,16 @@ def test_get_cards_data_cashback():
         {"last_digits": "1234", "total_spent": 100.0, "cashback": 1.0},
         {"last_digits": "5678", "total_spent": 50.0, "cashback": 0.5},
     ]
-    assert get_cards_data(transactions) == expected_result
+    assert analyze_dict_user_card(transactions) == expected_result
 
 
-def test_get_top_5_transactions_empty():
+def test_top_user_transactions_empty():
     transactions = []
     expected_result = []
-    assert get_top_5_transactions(transactions) == expected_result
+    assert top_user_transactions(transactions) == expected_result
 
 
-def test_get_top_5_transactions_single_transaction():
+def test_top_user_transactions_one():
     transactions = [
         {
             "Дата операции": "20.06.2023 12:00:00",
@@ -203,11 +210,86 @@ def test_get_top_5_transactions_single_transaction():
             "Описание": "Покупка еды",
         }
     ]
-    expected_result = [{"date": "20.06.2023", "amount": "-100.0", "category": "Еда", "description": "Покупка еды"}]
-    assert get_top_5_transactions(transactions) == expected_result
+    expected_result = [{"Дата операции": "20.06.2023", "Сумма операции": "-100.0", "Категория": "Еда", "Описание": "Покупка еды"}]
+    assert top_user_transactions(transactions) == expected_result
 
 
-def test_get_top_5_transactions_multiple_transactions():
+
+def test_top_user_transactions_all():
+    transactions = [
+        {
+            "Дата операции": "18.09.2021 15:54:33",
+            "Сумма операции": 1375.46,
+            "Категория": "Супермаркеты",
+            "Описание": "Магнит",
+        },
+        {
+            "Дата операции": "06.03.2018 12:11:25",
+            "Сумма операции": 310.0,
+            "Категория": "Фастфуд",
+            "Описание": "OOO Frittella"
+        },
+        {
+            "Дата операции": "01.09.2021 14:51:14",
+            "Сумма операции": 5990.0,
+            "Категория": "Каршеринг",
+            "Описание": "Ситидрайв",
+        },
+        {
+            "Дата операции": "20.05.2021 11:05:22",
+            "Сумма операции": 28626.0,
+            "Категория": "Турагентства",
+            "Описание": "AviaKassa.com",
+        },
+        {
+            "Дата операции": "05.06.2021 12:01:35",
+            "Сумма операции": 5000.00,
+            "Категория": "Турагентства",
+            "Описание": "Aeroport Sochi Sector A2",
+        },
+        {
+            "Дата операции": "08.03.2018 20:12:02",
+            "Сумма операции": 1194.00,
+            "Категория": "Одежда и обувь",
+            "Описание": "Kontsept Klub",
+        }
+    ]
+    expected_result = [
+        {
+            "Дата операции": "20.05.2021",
+            "Сумма операции": 28626.0,
+            "Категория": "Турагентства",
+            "Описание": "AviaKassa.com",
+        },
+        {
+            "Дата операции": "01.09.2021",
+            "Сумма операции": 5990.0,
+            "Категория": "Каршеринг",
+            "Описание": "Ситидрайв",
+        },
+        {
+            "Дата операции": "05.06.2021",
+            "Сумма операции": 5000.00,
+            "Категория": "Турагентства",
+            "Описание": "Aeroport Sochi Sector A2",
+        },
+        {
+            "Дата операции": "18.09.2021",
+            "Сумма операции": 1375.46,
+            "Категория": "Супермаркеты",
+            "Описание": "Магнит",
+        },
+        {
+            "Дата операции": "08.03.2018",
+            "Сумма операции": 1194.00,
+            "Категория": "Одежда и обувь",
+            "Описание": "Kontsept Klub",
+        }
+    ]
+    assert top_user_transactions(transactions) == expected_result
+
+
+def test_top_user_transactions_equal_amounts():
     transactions = [
         {
             "Дата операции": "20.06.2023 12:00:00",
@@ -217,83 +299,12 @@ def test_get_top_5_transactions_multiple_transactions():
         },
         {
             "Дата операции": "21.06.2023 12:00:00",
-            "Сумма операции": "-200.0",
+            "Сумма операции": "-100.0",
             "Категория": "Транспорт",
             "Описание": "Оплата проезда",
         },
         {
             "Дата операции": "22.06.2023 12:00:00",
-            "Сумма операции": "-50.0",
-            "Категория": "Развлечения",
-            "Описание": "Кино",
-        },
-        {
-            "Дата операции": "23.06.2023 12:00:00",
-            "Сумма операции": "-300.0",
-            "Категория": "Магазины",
-            "Описание": "Покупка одежды",
-        },
-        {
-            "Дата операции": "24.06.2023 12:00:00",
-            "Сумма операции": "-20.0",
-            "Категория": "Кофе",
-            "Описание": "Кофе на вынос",
-        },
-        {
-            "Дата операции": "25.06.2023 12:00:00",
-            "Сумма операции": "-400.0",
-            "Категория": "Магазины",
-            "Описание": "Покупка техники",
-        },
-    ]
-    expected_result = [
-        {"date": "25.06.2023", "amount": "-400.0", "category": "Магазины", "description": "Покупка техники"},
-        {"date": "23.06.2023", "amount": "-300.0", "category": "Магазины", "description": "Покупка одежды"},
-        {"date": "21.06.2023", "amount": "-200.0", "category": "Транспорт", "description": "Оплата проезда"},
-        {"date": "20.06.2023", "amount": "-100.0", "category": "Еда", "description": "Покупка еды"},
-        {"date": "22.06.2023", "amount": "-50.0", "category": "Развлечения", "description": "Кино"},
-    ]
-    assert get_top_5_transactions(transactions) == expected_result
-
-
-def test_get_top_5_transactions_less_than_5():
-    transactions = [
-        {
-            "Дата операции": "20.06.2023 12:00:00",
-            "Сумма операции": "-100.0",
-            "Категория": "Еда",
-            "Описание": "Покупка еды",
-        },
-        {
-            "Дата операции": "21.06.2023 12:00:00",
-            "Сумма операции": "-200.0",
-            "Категория": "Транспорт",
-            "Описание": "Оплата проезда",
-        },
-    ]
-    expected_result = [
-        {"date": "21.06.2023", "amount": "-200.0", "category": "Транспорт", "description": "Оплата проезда"},
-        {"date": "20.06.2023", "amount": "-100.0", "category": "Еда", "description": "Покупка еды"},
-    ]
-    assert get_top_5_transactions(transactions) == expected_result
-
-
-def test_get_top_5_transactions_with_equal_amounts():
-    transactions = [
-        {
-            "Дата операции": "20.06.2023 12:00:00",
-            "Сумма операции": "-100.0",
-            "Категория": "Еда",
-            "Описание": "Покупка еды",
-        },
-        {
-            "Дата операции": "21.06.2023 12:00:00",
-            "Сумма операции": "-100.0",
-            "Категория": "Транспорт",
-            "Описание": "Оплата проезда",
-        },
-        {
-            "Дата операции": "22.06.2023 12:00:00",
             "Сумма операции": "-100.0",
             "Категория": "Развлечения",
             "Описание": "Кино",
@@ -318,122 +329,39 @@ def test_get_top_5_transactions_with_equal_amounts():
         },
     ]
     expected_result = [
-        {"date": "20.06.2023", "amount": "-100.0", "category": "Еда", "description": "Покупка еды"},
-        {"date": "21.06.2023", "amount": "-100.0", "category": "Транспорт", "description": "Оплата проезда"},
-        {"date": "22.06.2023", "amount": "-100.0", "category": "Развлечения", "description": "Кино"},
-        {"date": "23.06.2023", "amount": "-100.0", "category": "Магазины", "description": "Покупка одежды"},
-        {"date": "24.06.2023", "amount": "-100.0", "category": "Кофе", "description": "Кофе на вынос"},
+        {"Дата операции": "20.06.2023", "Сумма операции": "-100.0", "Категория": "Еда", "Описание": "Покупка еды"},
+        {"Дата операции": "21.06.2023", "Сумма операции": "-100.0", "Категория": "Транспорт", "Описание": "Оплата проезда"},
+        {"Дата операции": "22.06.2023", "Сумма операции": "-100.0", "Категория": "Развлечения", "Описание": "Кино"},
+        {"Дата операции": "23.06.2023", "Сумма операции": "-100.0", "Категория": "Магазины", "Описание": "Покупка одежды"},
+        {"Дата операции": "24.06.2023", "Сумма операции": "-100.0", "Категория": "Кофе", "Описание": "Кофе на вынос"},
     ]
-    assert get_top_5_transactions(transactions) == expected_result
+    assert top_user_transactions(transactions) == expected_result
 
 
-@pytest.fixture
-def api_key_currency():
-    return "test_api_key"
+class TestFetchCurrencyRates(unittest.TestCase):
+
+    @patch('requests.get')
+    def test_fetch_currency_rates_values_failure(self, mock_get):
+        mock_response = Mock()
+        mock_response.status_code = 400
+        mock_get.return_value = mock_response
+
+        result = fetch_currency_rates_values(["EUR"])
+
+        expected = []
+        self.assertEqual(result, expected)
 
 
-def test_get_exchange_rates_success(api_key_currency):
-    currencies = ["USD", "EUR"]
-    expected_result = [{"currency": "USD", "rate": 75.0}, {"currency": "EUR", "rate": 90.0}]
+@patch("requests.get")
+def test_fetch_stock_prices(mock_get):
+    """Тестирование функции получения данных об акциях из списка S&P500"""
 
-    with requests_mock.Mocker() as mocker:
-        mocker.get(
-            f"https://v6.exchangerate-api.com/v6/{api_key_currency}/latest/USD",
-            json={"conversion_rates": {"RUB": 75.0}},
-        )
-        mocker.get(
-            f"https://v6.exchangerate-api.com/v6/{api_key_currency}/latest/EUR",
-            json={"conversion_rates": {"RUB": 90.0}},
-        )
+    mock_get.return_value.json.return_value = {"Global Quote": {"05. price": 210.00}}
 
-        assert get_exchange_rates(currencies, api_key_currency) == expected_result
+    list_stocks = ["AAPL"]
 
-
-def test_get_exchange_rates_partial_failure(api_key_currency):
-    currencies = ["USD", "EUR"]
-    expected_result = [{"currency": "USD", "rate": 75.0}, {"currency": "EUR", "rate": None}]
-
-    with requests_mock.Mocker() as mocker:
-        mocker.get(
-            f"https://v6.exchangerate-api.com/v6/{api_key_currency}/latest/USD",
-            json={"conversion_rates": {"RUB": 75.0}},
-        )
-        mocker.get(
-            f"https://v6.exchangerate-api.com/v6/{api_key_currency}/latest/EUR", status_code=404, text="Not Found"
-        )
-
-        assert get_exchange_rates(currencies, api_key_currency) == expected_result
-
-
-def test_get_exchange_rates_all_failure(api_key_currency):
-    currencies = ["USD", "EUR"]
-    expected_result = [{"currency": "USD", "rate": None}, {"currency": "EUR", "rate": None}]
-
-    with requests_mock.Mocker() as mocker:
-        mocker.get(
-            f"https://v6.exchangerate-api.com/v6/{api_key_currency}/latest/USD", status_code=500, text="Server Error"
-        )
-        mocker.get(
-            f"https://v6.exchangerate-api.com/v6/{api_key_currency}/latest/EUR", status_code=500, text="Server Error"
-        )
-
-        assert get_exchange_rates(currencies, api_key_currency) == expected_result
-
-
-@pytest.fixture
-def api_key_stocks():
-    return "test_api_key"
-
-
-def test_get_stocks_cost_success(api_key_stocks):
-    companies = ["AAPL", "AMZN"]
-    expected_result = [{"stock": "AAPL", "price": 150.0}, {"stock": "AMZN", "price": 3000.0}]
-
-    with requests_mock.Mocker() as mocker:
-        mocker.get(
-            f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AAPL&apikey=" f"{api_key_stocks}",
-            json={"Time Series (Daily)": {"2023-06-19": {"4. close": "150.0"}}},
-        )
-        mocker.get(
-            f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AMZN&apikey=" f"{api_key_stocks}",
-            json={"Time Series (Daily)": {"2023-06-19": {"4. close": "3000.0"}}},
-        )
-
-        assert get_stocks_cost(companies, api_key_stocks) == expected_result
-
-
-def test_get_stocks_cost_partial_failure(api_key_stocks):
-    companies = ["AAPL", "AMZN"]
-    expected_result = [{"stock": "AAPL", "price": 150.0}, {"stock": "AMZN", "price": None}]
-
-    with requests_mock.Mocker() as mocker:
-        mocker.get(
-            f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AAPL&apikey=" f"{api_key_stocks}",
-            json={"Time Series (Daily)": {"2023-06-19": {"4. close": "150.0"}}},
-        )
-        mocker.get(
-            f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AMZN&apikey=" f"{api_key_stocks}",
-            status_code=404,
-            text="Not Found",
-        )
-
-        assert get_stocks_cost(companies, api_key_stocks) == expected_result
-
-
-def test_get_stocks_cost_all_failure(api_key_stocks):
-    companies = ["AAPL", "AMZN"]
-    expected_result = [{"stock": "AAPL", "price": None}, {"stock": "AMZN", "price": None}]
-
-    with requests_mock.Mocker() as mocker:
-        mocker.get(
-            f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AAPL&apikey=" f"{api_key_stocks}",
-            status_code=500,
-            text="Server Error",
-        )
-        mocker.get(
-            f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=AMZN&apikey=" f"{api_key_stocks}",
-            status_code=500,
-            text="Server Error",
-        )
-
-        assert get_stocks_cost(companies, api_key_stocks) == expected_result
+    result = fetch_stock_prices_values(list_stocks)
+    expected = [
+        {"stock": "AAPL", "price": 210.00},
+    ]
+    assert result == expected
