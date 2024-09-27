@@ -6,8 +6,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import requests
 
-
-
+import config
 
 load_dotenv()
 
@@ -89,9 +88,8 @@ def analyze_dict_user_card(transactions: list[dict]) -> list[dict]:
             if amount < 0:
                 cards_data[card_number]["total_spent"] += abs(amount)
                 cashback_value = transaction.get("Кэшбэк")
-            # убираем категории переводы и наличные т.к. с них кэшбека не будет
-                if transaction["Категория"] != "Переводы" and transaction["Категория"] != "Наличные":
-                # рассчитываем кэшбек как 1% от траты, но если поле кешбек содержит сумму просто ее добавляем
+                if transaction["Категория"] != "Переводы" and transaction["Категория"] != "Пополнения":
+                    # рассчитываем кэшбек как 1% от траты, но если поле кешбек содержит сумму просто ее добавляем
                     if cashback_value is not None:
                         cashback_amount = float(cashback_value)
                         if cashback_amount >= 0:
@@ -172,6 +170,18 @@ def fetch_stock_prices_values(stocks: list) -> list[dict]:
 
 
 if __name__ == "__main__":
-
-    result = fetch_currency_rates_values(["USD","EUR"])
+    result_one = fetch_user_data("../data/operations.xlsx")
+    print(result_one)
+    result_two = greeting_twenty_four_hours()
+    print(result_two)
+    result_card = analyze_dict_user_card(config.transactions)
+    print(result_card)
+    result_top = top_user_transactions(config.transactions)
+    print(result_top)
+    result = fetch_currency_rates_values(["USD", "EUR"])
     print(result)
+    result_stock = fetch_stock_prices_values(["AAPL", "AMZN", "GOOGL", "MSFT", "TSLA"])
+    print(result_stock)
+    result_filter = filter_transactions_by_date(config.transactions, "16.10.2021")
+    print(result_filter)
+
