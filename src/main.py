@@ -11,7 +11,7 @@ print(main_page)
 cashback_analysis_result = analyze_cashback(config.transactions, config.year, config.month)
 print(cashback_analysis_result)
 
-df = pd.read_excel(r"../data/operations.xlsx")
+
+df = pd.read_excel(r"../data/operations.xls")
 spending_by_category_result = spending_by_category(df, "Супермаркеты", "2020.05.20")
 print(spending_by_category_result)
-

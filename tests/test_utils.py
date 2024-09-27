@@ -4,7 +4,6 @@ from unittest.mock import Mock, patch
 import unittest
 import pandas as pd
 import pytest
-import requests
 
 
 from src.utils import (filter_transactions_by_date, fetch_user_data,
@@ -339,7 +338,6 @@ def test_top_user_transactions_equal_amounts():
 
 
 class TestFetchCurrencyRates(unittest.TestCase):
-
     @patch('requests.get')
     def test_fetch_currency_rates_values_failure(self, mock_get):
         mock_response = Mock()

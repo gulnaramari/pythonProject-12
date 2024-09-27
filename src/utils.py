@@ -5,8 +5,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import pandas as pd
 import requests
-
-import config
+from src.logger import setup_logger
 
 load_dotenv()
 
@@ -15,24 +14,19 @@ API_KEY = os.getenv("API_KEY")
 API_KEY_SP = os.getenv("API_KEY_SP")
 
 
-utils_logger = logging.getLogger("utils")
-file_handler = logging.FileHandler("../logs/utils.log", "w", encoding="utf-8")
-file_formatter = logging.Formatter("%(asctime)s %(filename)s %(levelname)s: %(message)s")
-file_handler.setFormatter(file_formatter)
-utils_logger.addHandler(file_handler)
-utils_logger.setLevel(logging.INFO)
+logger = setup_logger("utils", "logs/utils.log")
 
 
 def fetch_user_data(path: str) -> list[dict]:
     """Функция принимает путь до xlsx файла и создает список словарей с транзакциями"""
     try:
         df = pd.read_excel(path)
-        utils_logger.info("Beginning of the work...")
-        utils_logger.info("Finish of the work")
+        logger.info("Beginning of the work...")
+        logger.info("Finish of the work")
         return df.to_dict(orient="records")
     except Exception as e:
         print(f"Error {e}")
-        utils_logger.error(f"Error {e}")
+        logger.error(f"Error {e}")
         return []
 
 
@@ -51,26 +45,26 @@ def filter_transactions_by_date(transactions: list[dict], date: str) -> list[dic
         for transaction in transactions
         if begin_date <= parse_date(transaction["Дата операции"]) <= end_date
     ]
-    utils_logger.info(f"Filtrated by date from {begin_date} to {end_date}")
+    logger.info(f"Filtrated by date from {begin_date} to {end_date}")
     return filtered_transactions
 
 
 def greeting_twenty_four_hours():
     """Приветствие пользователя"""
-    utils_logger.info("Beginning of the work...")
+    logger.info("Beginning of the work...")
     now = datetime.now()
     current_time = now.hour
     if 6 <= current_time < 12:
-        utils_logger.info("Доброе утро")
+        logger.info("Доброе утро")
         return "Доброе утро"
     elif 12 <= current_time < 18:
-        utils_logger.info("Добрый день")
+        logger.info("Добрый день")
         return "Добрый день"
     elif 18 <= current_time < 24:
-        utils_logger.info("Добрый вечер")
+        logger.info("Добрый вечер")
         return "Добрый вечер"
     else:
-        utils_logger.info("Доброй ночи")
+        logger.info("Доброй ночи")
         return "Доброй ночи"
 
 
@@ -98,7 +92,7 @@ def analyze_dict_user_card(transactions: list[dict]) -> list[dict]:
                             cards_data[card_number]["cashback"] += amount * -0.01
                     else:
                         cards_data[card_number]["cashback"] += amount * -0.01
-        utils_logger.info("Cashback and card amounts have been calculated")
+        logger.info("Cashback and card amounts have been calculated")
         each_card = []
         for last_digits, data in cards_data.items():
             each_card.append(
@@ -108,10 +102,10 @@ def analyze_dict_user_card(transactions: list[dict]) -> list[dict]:
                     "cashback": round(data["cashback"], 2),
                 }
             )
-        utils_logger.info("Cashback and amounts calculated for each card")
+        logger.info("Cashback and amounts calculated for each card")
         return each_card
     except ValueError:
-        utils_logger.error("Error: Incorrect data")
+        logger.error("Error: Incorrect data")
         print("Incorrect data")
 
 
@@ -129,14 +123,13 @@ def top_user_transactions(transactions: list[dict]) -> list[dict]:
                 "Описание": transaction["Описание"],
             }
         )
-    utils_logger.info("Five top transactions received")
+    logger.info("Five top transactions received")
     return top_transactions
 
 
 def fetch_currency_rates_values(currency_list: list[str]) -> list[dict[str, [str | int]]]:
     """Функция получения курса валют через API"""
-    utils_logger.info("Beginning of the work...")
-
+    logger.info("Beginning of the work...")
     url = "https://api.apilayer.com/exchangerates_data/latest"
     headers = {"apikey": f"{API_KEY}"}
     currency_rate_dict = []
@@ -148,40 +141,22 @@ def fetch_currency_rates_values(currency_list: list[str]) -> list[dict[str, [str
             result_j = response.json()
             currency_rate_dict.append({"currency": f"{result_j['base']}", "rate": f"{result_j['rates']['RUB']}"})
         else:
-            utils_logger.info("Error")
-    utils_logger.info("Data were successfully generated. Finish of work")
+            logger.info("Error")
+    logger.info("Data were successfully generated. Finish of work")
     return currency_rate_dict
 
 
 def fetch_stock_prices_values(stocks: list) -> list[dict]:
     """Функция для получения данных об акциях из списка S&P500"""
-    utils_logger.info("Beginning of the work...")
+    logger.info("Beginning of the work...")
     api_key = API_KEY_SP
     stock_prices = []
-    utils_logger.info("Transaction data in work")
+    logger.info("Transaction data in work")
     for stock in stocks:
-        utils_logger.info("Iterating through stocks in the 'stocks' list")
+        logger.info("Iterating through stocks in the 'stocks' list")
         url = f"https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol={stock}&apikey={api_key}"
         response = requests.get(url, timeout=5, allow_redirects=False)
         res = response.json()
         stock_prices.append({"stock": stock, "price": round(float(res["Global Quote"]["05. price"]), 2)})
-    utils_logger.info("Data were successfully generated. Finish of work")
+    logger.info("Data were successfully generated. Finish of work")
     return stock_prices
-
-
-if __name__ == "__main__":
-    result_one = fetch_user_data("../data/operations.xlsx")
-    print(result_one)
-    result_two = greeting_twenty_four_hours()
-    print(result_two)
-    result_card = analyze_dict_user_card(config.transactions)
-    print(result_card)
-    result_top = top_user_transactions(config.transactions)
-    print(result_top)
-    result = fetch_currency_rates_values(["USD", "EUR"])
-    print(result)
-    result_stock = fetch_stock_prices_values(["AAPL", "AMZN", "GOOGL", "MSFT", "TSLA"])
-    print(result_stock)
-    result_filter = filter_transactions_by_date(config.transactions, "16.10.2021")
-    print(result_filter)
-

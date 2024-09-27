@@ -11,9 +11,9 @@ API_KEY_SP = os.getenv("API_KEY_SP")
 
 input_date_str = "20.03.2020"
 transactions = fetch_user_data(r"../data/operations.xlsx")
-year = 2021
-month = 6
-date = "2021.06"
+year = 2020
+month = 5
+date = "2020.05"
 
 
 @pytest.fixture
