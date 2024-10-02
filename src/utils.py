@@ -5,7 +5,11 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import pandas as pd
 import requests
+from mypy.main import a
+
 from src.logger import setup_logger
+
+
 
 load_dotenv()
 
@@ -17,36 +21,28 @@ API_KEY_SP = os.getenv("API_KEY_SP")
 logger = setup_logger("utils", "logs/utils.log")
 
 
-def fetch_user_data(path: str) -> list[dict]:
-    """Функция принимает путь до xlsx файла и создает список словарей с транзакциями"""
+def fetch_user_data(path: str) -> pd.DataFrame:
+    """Функция принимает путь до xlsx файла и отдает датафрейм с транзакциями"""
+    logger.info("Beginning of the work...")
     try:
-        df = pd.read_excel(path)
-        logger.info("Beginning of the work...")
-        logger.info("Finish of the work")
-        return df.to_dict(orient="records")
-    except Exception as e:
-        print(f"Error {e}")
-        logger.error(f"Error {e}")
-        return []
+        df_data = pd.read_excel(path)
+        logger.info("Finish of the work: data are fetched")
+        return df_data
+    except FileNotFoundError:
+        logger.info(f"File {path} not found")
+        raise
 
 
-def filter_transactions_by_date(transactions: list[dict], date: str) -> list[dict]:
-    """Функция фильтрует транзакции с начала месяца, на который выпадает входящая дата по входящую дату"""
-    date_ = datetime.strptime(date, "%d.%m.%Y")
-    end_date = date_ + timedelta(days=1)
-    begin_date = datetime(end_date.year, end_date.month, 1)
-
-    def parse_date(date_str: str) -> datetime:
-        """Функция переводит дату из формата строки в формат datetime"""
-        return datetime.strptime(date_str, "%d.%m.%Y %H:%M:%S")
-
-    filtered_transactions = [
-        transaction
-        for transaction in transactions
-        if begin_date <= parse_date(transaction["Дата операции"]) <= end_date
-    ]
-    logger.info(f"Filtrated by date from {begin_date} to {end_date}")
-    return filtered_transactions
+def mod_date(date: str) -> datetime:
+    """Функция преобразования даты"""
+    logger.info(f"Received date string:{date}")
+    try:
+        date_obj = datetime.strptime(date, "%d.%m.%Y %H:%M:%S")
+        logger.info(f"Converted to datetime object:{date_obj}")
+        return date_obj
+    except ValueError as e:
+        logger.error(f"Error: {e}")
+        raise e
 
 
 def greeting_twenty_four_hours():
@@ -68,63 +64,56 @@ def greeting_twenty_four_hours():
         return "Доброй ночи"
 
 
-def analyze_dict_user_card(transactions: list[dict]) -> list[dict]:
-    """Функция создает словарь с суммой общих трат и суммой кэшбека"""
-    try:
-        cards_data = {}
-        for transaction in transactions:
-            card_number = transaction.get("Номер карты")
-            if not card_number:
-                continue
-            amount = float(transaction["Сумма операции"])
-            if card_number not in cards_data:
-                cards_data[card_number] = {"total_spent": 0.0, "cashback": 0.0}
-            if amount < 0:
-                cards_data[card_number]["total_spent"] += abs(amount)
-                cashback_value = transaction.get("Кэшбэк")
-                if transaction["Категория"] != "Переводы" and transaction["Категория"] != "Пополнения":
-                    # рассчитываем кэшбек как 1% от траты, но если поле кешбек содержит сумму просто ее добавляем
-                    if cashback_value is not None:
-                        cashback_amount = float(cashback_value)
-                        if cashback_amount >= 0:
-                            cards_data[card_number]["cashback"] += cashback_amount
-                        else:
-                            cards_data[card_number]["cashback"] += amount * -0.01
-                    else:
-                        cards_data[card_number]["cashback"] += amount * -0.01
-        logger.info("Cashback and card amounts have been calculated")
-        each_card = []
-        for last_digits, data in cards_data.items():
-            each_card.append(
-                {
-                    "last_digits": last_digits,
-                    "total_spent": round(data["total_spent"], 2),
-                    "cashback": round(data["cashback"], 2),
-                }
-            )
-        logger.info("Cashback and amounts calculated for each card")
-        return each_card
-    except ValueError:
-        logger.error("Error: Incorrect data")
-        print("Incorrect data")
-
-
-def top_user_transactions(transactions: list[dict]) -> list[dict]:
-    """Функция принимает список транзакций и выводит топ 5 операций по сумме платежа"""
-    sorted_transactions = sorted(transactions, key=lambda x: float(x["Сумма операции"]), reverse=True)
-    top_transactions = []
-    for transaction in sorted_transactions[:5]:
-        date = datetime.strptime(transaction["Дата операции"], "%d.%m.%Y %H:%M:%S").strftime("%d.%m.%Y")
-        top_transactions.append(
-            {
-                "Дата операции": date,
-                "Сумма операции": transaction["Сумма операции"],
-                "Категория": transaction["Категория"],
-                "Описание": transaction["Описание"],
-            }
+def analyze_dict_user_card(df_data) -> list[dict]:
+    """Функция создает словарь с расходами по каждой карте"""
+    logger.info("Beginning of the work...")
+    if "Номер карты" in df_data.columns and "Номер карты"!=None:
+        cards_groupping = (
+            df_data.loc[df_data["Сумма платежа"] < 0]
+            .groupby("Номер карты")["Сумма платежа"]
+            .sum()
+            .to_dict()
         )
-    logger.info("Five top transactions received")
-    return top_transactions
+
+        logger.debug(f"Cards have been grouped: {cards_groupping}")
+
+        card_expense = []
+
+        for card, expense in cards_groupping.items():
+            card_expense.append({
+                "last_digits": card,
+                "total_spent": abs(expense),
+                "cashback": abs(round(expense / 100, 2))
+            })
+            logger.info(f"Expenses on card {card} were added: {abs(expense)}")
+
+        logger.info("Finish of the work: data on card's expenses were analyzed")
+        return card_expense
+
+    logger.warning("No valid data found.")
+    return []
+
+
+def top_user_transactions(df_data) -> list[dict]:
+    """Функция принимает список транзакций и выводит топ 5 операций по сумме платежа"""
+    logger.info("Beginning of the work...")
+    if not df_data.loc[:, 'Номер карты'].empty:
+        top_transactions = df_data.sort_values(by="Сумма платежа", ascending=True).iloc[:5]
+        print(top_transactions)
+        result_ = top_transactions.to_dict(orient="records")
+
+        top_list = []
+        for transaction in result_:
+           top_list.append(
+           {
+               "Дата": transaction["Дата платежа"],
+               "Сумма платежа": transaction["Сумма платежа"],
+               "Категория": transaction["Категория"],
+               "Описание": transaction["Описание"],
+           }
+           )
+    logger.info("Five top transactions were received")
+    return top_list
 
 
 def fetch_currency_rates_values(currency_list: list[str]) -> list[dict[str, [str | int]]]:
@@ -160,3 +149,38 @@ def fetch_stock_prices_values(stocks: list) -> list[dict]:
         stock_prices.append({"stock": stock, "price": round(float(res["Global Quote"]["05. price"]), 2)})
     logger.info("Data were successfully generated. Finish of work")
     return stock_prices
+
+
+def transaction_filter(df_data: pd.DataFrame, date: str) -> pd.DataFrame:
+    """Функция, по сути фильтрация датафрейма по заданной дате"""
+    logger.info(f"Beginning of the work...")
+    date_ = mod_date(date)
+    logger.debug(f"End date: {date_}")
+    begin_date = date_.replace(day=1)
+    logger.debug(f"Begin date: {begin_date}")
+    date_end = date_.replace(hour=0, minute=0, second=0) + timedelta(days=1)
+    logger.debug(f"End date: {date_end}")
+    transaction_ = df_data.loc[
+        (pd.to_datetime(df_data["Дата операции"], dayfirst=True) <= date_end)
+        & (pd.to_datetime(df_data["Дата операции"], dayfirst=True) >= begin_date)
+    ]
+    logger.info(f"DataFrame was received {transaction_}")
+
+    return transaction_
+
+
+if __name__ == "__main__":
+    result = fetch_user_data(r"../data/operations.xlsx")
+    print(result)
+
+if __name__ == "__main__":
+    result_expenses_cards = analyze_dict_user_card(fetch_user_data(r"../data/operations.xlsx"))
+    print(result_expenses_cards)
+
+if __name__ == "__main__":
+    top_ = top_user_transactions(fetch_user_data(r"../data/operations.xlsx"))
+    print(top_)
+
+if __name__ == "__main__":
+    transaction_res = (transaction_filter(fetch_user_data(r"../data/operations.xlsx"), "21.03.2019 17:01:38"))
+    print(transaction_res)
