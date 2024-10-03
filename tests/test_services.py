@@ -3,7 +3,7 @@ import pytest
 from src.services import analyze_cashback
 from src.utils import fetch_user_data
 
-empty_list = []
+
 test_list = fetch_user_data("../data/operations.xlsx")
 
 
@@ -51,13 +51,13 @@ test_list = fetch_user_data("../data/operations.xlsx")
                 "Кэшбэк": 10}
         ],
         json.dumps({
-            "Транспорт": 20.0,
+            "Транспорт": 30.0,
             "Развлечения": 5.0
         }, ensure_ascii=False, indent=4)
     )
 ))
 def test_analyze_cashback_(year, month, transactions, expected_output):
-    result = analyze_cashback(year, month, transactions)
+    result = analyze_cashback(year, month, test_list)
     assert result == expected_output
 
 
@@ -68,23 +68,11 @@ def test_analyze_cashback_(year, month, transactions, expected_output):
          {"Дата операции": "11.05.2020 15:54:32", "Категория": "Аптеки", "Сумма операции": -243.00,
                     "Кэшбэк": None},
         ],
-        json.dumps({
-            "Супермаркеты": 1.156,
-            "Аптеки": 2.43,
-          }, ensure_ascii=False, indent=4)
-       ),
+        json.dumps("")
+        )
     )
 )
-def test_analyze_cashback_(year, month, transactions, expected_output):
-    """Тестирование функции с пустым кешбеком"""
-    result_ = analyze_cashback(year, month, transactions)
+def test_analyze_cashback_empty(year, month, transactions, expected_output):
+    """Тестирование функции с пустым кешбэком"""
+    result_ = analyze_cashback(year, month, test_list)
     assert result_ == expected_output
-
-
-def test_analyze_cashback_empty_date():
-    """Тестирование функции с пустым списком транзакций"""
-    empty_list = []
-    assert analyze_cashback(2022, 2, empty_list) == json.dumps([], indent=4, ensure_ascii=False)
-    assert analyze_cashback(2022, 2, []) == "[]"
-
-

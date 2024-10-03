@@ -9,11 +9,11 @@ load_dotenv()
 API_KEY = os.getenv("API_KEY")
 API_KEY_SP = os.getenv("API_KEY_SP")
 
-input_date_str = "20.03.2020"
+input_date = "30.12.2021 17:50:17"
 transactions = fetch_user_data(r"../data/operations.xlsx")
-year = 2020
-month = 5
-date = "2020.05"
+year = 2021
+month = 12
+
 
 
 @pytest.fixture
