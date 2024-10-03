@@ -26,7 +26,8 @@ def log(filename: Any = None) -> Callable:
                     file.write(log_message)
             else:
                 print(log_message)
-            return result
+            return result.to_json(path_or_buf=filename, orient='records',
+                                  indent=4, force_ascii=False)
 
         return wrapper
 
