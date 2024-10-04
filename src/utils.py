@@ -1,11 +1,12 @@
 import os
 from datetime import datetime, timedelta
+from json.decoder import NaN
 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-
 from src.logger import setup_logger
+
 
 load_dotenv()
 
@@ -26,6 +27,22 @@ def fetch_user_data(path: str) -> pd.DataFrame:
         return df_data
     except FileNotFoundError:
         logger.info(f"File {path} not found")
+        raise
+
+
+def data_to_list(path) -> list[dict]:
+    """Функция переводит датафрейм в список словарей"""
+    logger.info(f"Beginning of the work...")
+    try:
+        df = pd.read_excel(path)
+        list_dict = df.to_dict(orient="records")
+        logger.info("Dataframe converted to list of dictionaries")
+        return list_dict
+    except FileNotFoundError:
+        logger.error(f"File {path} not found")
+        raise
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
         raise
 
 
@@ -63,7 +80,7 @@ def greeting_twenty_four_hours():
 def analyze_dict_user_card(df_data: pd.DataFrame) -> list[dict]:
     """Функция создает словарь с расходами по каждой карте"""
     logger.info("Beginning of the work...")
-    filtered_card = df_data[df_data["Категория"] != "Переводы"]
+    filtered_card = df_data[df_data["Номер карты"] != ""]
     print(filtered_card.head(10))
     cards_groupping = (
         filtered_card.loc[df_data["Сумма платежа"] < 0].groupby("Номер карты")["Сумма платежа"].sum().to_dict()
@@ -85,10 +102,10 @@ def top_user_transactions(df_data) -> list[dict]:
     """Функция принимает список транзакций и выводит топ 5 операций по сумме платежа"""
     logger.info("Beginning of the work...")
 
-    filtered_data = df_data[df_data["Категория"] != "Переводы"]
-    print(filtered_data)
+    filtered_data = df_data[(df_data["Категория"] != "Переводы") & (df_data["Категория"] != "Пополнения")]
+    print(filtered_data.head(10))
 
-    top_transactions = filtered_data.sort_values(by="Сумма платежа", ascending=True).iloc[:5]
+    top_transactions = filtered_data.sort_values(by="Сумма операции", ascending=True).iloc[:5]
     print(top_transactions)
     result_ = top_transactions.to_dict(orient="records")
 

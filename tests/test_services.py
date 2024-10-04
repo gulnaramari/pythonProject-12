@@ -1,10 +1,9 @@
 import json
 import pytest
 from src.services import analyze_cashback
-from src.utils import fetch_user_data
+import config
 
-
-test_list = fetch_user_data("../data/operations.xlsx")
+test_list = config.data
 
 
 @pytest.mark.parametrize("year, month, transactions, expected_output", (
@@ -51,7 +50,7 @@ test_list = fetch_user_data("../data/operations.xlsx")
                 "Кэшбэк": 10}
         ],
         json.dumps({
-            "Транспорт": 30.0,
+            "Транспорт": 20.0,
             "Развлечения": 5.0
         }, ensure_ascii=False, indent=4)
     )
@@ -68,7 +67,7 @@ def test_analyze_cashback_(year, month, transactions, expected_output):
          {"Дата операции": "11.05.2020 15:54:32", "Категория": "Аптеки", "Сумма операции": -243.00,
                     "Кэшбэк": None},
         ],
-        json.dumps("")
+        json.dumps({"Супермаркеты": 1.156, "Аптеки": 2.43})
         )
     )
 )

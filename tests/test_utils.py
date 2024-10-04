@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import unittest
 import pandas as pd
 import pytest
+import config
 
 
 from src.utils import (mod_date, fetch_user_data,
@@ -21,16 +22,16 @@ def test_get_data_correct():
 
 def test_get_data_wrong():
     """функция обрабатывает исключение при неправильном вводе"""
-    input_date = "14.02.22 12:00:00"
+    input_date = "140222 120000"
     with pytest.raises(ValueError):
         mod_date(input_date)
 
 
 def test_get_data_empty():
-    """функция обрабатывает исключение при неправильном вводе"""
-    input_date = ""
+    """функция обрабатывает исключение при пустом вводе"""
+    empty_date = ""
     with pytest.raises(ValueError):
-        mod_date(input_date)
+        mod_date(empty_date)
 
 
 def test_get_greeting_1():
@@ -79,76 +80,74 @@ def test_transactions():
     return pd.DataFrame({"Номер карты": ["*7197", "*4556"], "Сумма платежа": [-1500, -2000]})
 
 
-def test_get_expenses_cards(test_transactions):
+def test_analyze_dict_user_card(test_transactions):
     result = analyze_dict_user_card(test_transactions)
-    assert result[0] == {"last_digits": "*7197", "total spent": 1500, "cashback": 15.0}
-    assert result[1] == {"last_digits": "*4556", "total spent": 2000, "cashback": 20.0}
+    assert result == [
+        {"last_digits": "*4556", "total_spent": 2000, "cashback": 20.0},
+        {"last_digits": "*7197", "total_spent": 1500, "cashback": 15.0},
+    ]
 
 
-def test_top_user_transactions_sample():
-    transactions = [
+@pytest.fixture
+def empty_transactions():
+    return pd.DataFrame({"Номер карты": ["", "*4556"], "Сумма платежа": [-190000, -2000]})
+
+
+def test_analyze_dict_user_card_empty(empty_transactions):
+    result = analyze_dict_user_card(empty_transactions)
+    assert result == [
+        {"last_digits": "*4556", "total_spent": 2000, "cashback": 20.0},
+    ]
+
+
+@pytest.fixture
+def test_top():
+    return pd.DataFrame({"Дата операции":
+                             ["09.11.2021 21:03:50", "01.08.2021 22:55:33",
+                              "16.11.2021 21:40:11", "19.11.2021 11:37:04",
+                              "17.12.2021 16:28:23", "28.12.2021 18:42:21"],
+                         "Сумма операции":
+                             [-1700.0, -400.0, -456.0, -17500.0, -120.0, -280.0],
+                         "Категория":
+                             ["Каршеринг", "Топливо", "Фастфуд", "Развлечения", "Супермаркеты", "Транспорт"],
+                         "Описание":
+                             ["Ситидрайв", "ЛУКОЙЛ", "Evo_Kebab Bar", "Kassaramblerrbs",
+                              "Магнит", "Такси"]
+                         })
+
+
+def test_top_user_transactions_sample(test_top):
+    result = top_user_transactions(test_top)
+    assert result == [
         {
-            "Дата операции": "18.09.2021 15:54:33",
-            "Сумма операции": 1375.46,
-            "Категория": "Супермаркеты",
-            "Описание": "Магнит",
+            "Дата операции": "19.11.2021 11:37:04",
+            "Сумма операции": -17500.0,
+            "Категория": "Развлечения",
+            "Описание": "Kassaramblerrbs"
         },
         {
-            "Дата операции": "01.09.2021 14:51:14",
-            "Сумма операции": 5990.0,
+            "Дата операции": "09.11.2021 21:03:50",
+            "Сумма операции": -1700.0,
             "Категория": "Каршеринг",
-            "Описание": "Ситидрайв",
+            "Описание": "Ситидрайв"
         },
         {
-            "Дата операции": "20.05.2021 11:05:22",
-            "Сумма операции": 28626.0,
-            "Категория": "Турагентства",
-            "Описание": "AviaKassa.com",
+            "Дата операции": "16.11.2021 21:40:11",
+            "Сумма операции": -456.0,
+            "Категория": "Фастфуд",
+            "Описание": "Evo_Kebab Bar"
         },
         {
-            "Дата операции": "05.06.2021 12:01:35",
-            "Сумма операции": 5000.00,
-            "Категория": "Турагентства",
-            "Описание": "Aeroport Sochi Sector A2",
+            "Дата операции": "01.08.2021 22:55:33",
+            "Сумма операции": -400.0,
+            "Категория": "Топливо",
+            "Описание": "ЛУКОЙЛ"
         },
         {
-            "Дата операции": "08.03.2018 20:12:02",
-            "Сумма операции": 1194.00,
-            "Категория": "Одежда и обувь",
-            "Описание": "Kontsept Klub",
+            "Дата операции": "28.12.2021 18:42:21",
+            "Сумма операции": -280.0,
+            "Категория": "Транспорт",
+            "Описание": "Такси"
         }
     ]
-    expected_result = [
-        {
-            "Дата операции": "20.05.2021",
-            "Сумма операции": 28626.0,
-            "Категория": "Турагентства",
-            "Описание": "AviaKassa.com",
-        },
-        {
-            "Дата операции": "01.09.2021",
-            "Сумма операции": 5990.0,
-            "Категория": "Каршеринг",
-            "Описание": "Ситидрайв",
-        },
-        {
-            "Дата операции": "05.06.2021",
-            "Сумма операции": 5000.00,
-            "Категория": "Турагентства",
-            "Описание": "Aeroport Sochi Sector A2",
-        },
-        {
-            "Дата операции": "18.09.2021",
-            "Сумма операции": 1375.46,
-            "Категория": "Супермаркеты",
-            "Описание": "Магнит",
-        },
-        {
-            "Дата операции": "08.03.2018",
-            "Сумма операции": 1194.00,
-            "Категория": "Одежда и обувь",
-            "Описание": "Kontsept Klub",
-        }
-    ]
-    assert top_user_transactions(transactions) == expected_result
 

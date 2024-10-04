@@ -1,3 +1,4 @@
+import datetime as dt
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Callable
@@ -10,32 +11,49 @@ from src.utils import fetch_user_data, mod_date
 logger = setup_logger("reports", "logs/reports.log")
 
 
-def log(filename: Any = None) -> Callable:
-    """Декоратор,который логирует вызов функции и ее результат в файл или в консоль"""
+def report_to_log(filename: Any = None) -> Callable:
+    """Декоратор логирует вызов функции """
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
             try:
                 result = func(*args, **kwargs)
-                log_message = "my_function ok\n"
+                message = f"{func.__name__} ok"
+
+                if not filename:
+                    print(message)
+                else:
+                    with open(filename, "a") as file:
+                        file.write(message)
+
+                result_ = result.to_json(
+                    path_or_buf=filename,
+                    orient='records',
+                    indent=4, force_ascii=False
+                )
+                return result_  # пускаем датафрейм от функции дальше, "на выход" из декоратора, не меняя его.
             except Exception as e:
-                result = None
-                log_message = f"my_function error: {e}. Inputs: {args}, {kwargs} \n"
-            if filename:
-                with open(filename, "a", encoding="utf-8") as file:
-                    file.write(log_message)
-            else:
-                print(log_message)
-            return result.to_json(path_or_buf=filename, orient='records',
-                                  indent=4, force_ascii=False)
+                error_message = (
+                    f"{func.__name__}:"
+                    f" {e.__class__.__name__}."
+                    f" Inputs: {args}, {kwargs}"
+                )
+                if not filename:
+                    print(error_message)
+                else:
+                    with open(filename, "a") as file:
+                        file.write(error_message)
+                raise
 
         return wrapper
 
     return decorator
 
 
+@report_to_log('output.json')
 def spending_by_category(df_transactions: pd.DataFrame, category: str, date: [str] = None) -> pd.DataFrame:
     """Функция возвращает траты по заданной категории за последние три месяца (от переданной даты)"""
+    logger.info("Beginning of the work...")
     if date is None:
         date = datetime.now()
     else:
@@ -46,11 +64,12 @@ def spending_by_category(df_transactions: pd.DataFrame, category: str, date: [st
         & (pd.to_datetime(df_transactions["Дата операции"], dayfirst=True) >= begin_date)
         & (df_transactions["Категория"] == category)
     ]
+    logger.info("Finish of the work: data were analyzed")
     return transactions_by_category
 
 
 if __name__ == "__main__":
     result = spending_by_category(
-        fetch_user_data(r"../data/operations.xlsx"), "Каршеринг", "30.12.2021 17:50:17"
+        fetch_user_data(r"../data/operations.xlsx"), "Супермаркеты", "28.12.2020 17:50:17"
     )
     print(result)
