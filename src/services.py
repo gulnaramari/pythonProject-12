@@ -6,9 +6,10 @@ from src.utils import data_to_list
 logger = setup_logger("services", "logs/services.log")
 
 
-def analyze_cashback(year: int, month: int, list_dict: list[dict[str, Any]]) -> Any:
+def analyze_cashback(year: int, month: int, list_dict: list[dict[str, Any]]):
     """Принимает список словарей транзакций и считает сумму кэшбека по категориям"""
     try:
+        logger.info("Beginning of the work...")
         cashback_: dict = {}
         for transaction in list_dict:
             transaction_date = datetime.strptime(transaction["Дата операции"], "%d.%m.%Y %H:%M:%S")
@@ -30,7 +31,7 @@ def analyze_cashback(year: int, month: int, list_dict: list[dict[str, Any]]) -> 
     except Exception as e:
         print(f"Error {e}")
         logger.error(f"Error {e}")
-        return ""
+        return None
 
 
 if __name__ == "__main__":

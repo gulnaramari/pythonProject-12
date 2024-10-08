@@ -1,4 +1,6 @@
 import os
+
+import pandas as pd
 from dotenv import load_dotenv
 from src.utils import fetch_user_data, data_to_list
 import pytest
@@ -16,10 +18,9 @@ year = 2020
 month = 12
 
 
-
 @pytest.fixture
 def test_data():
-    data = {
+    data_ = {
         "Дата операции": [
             "30.12.2021 14:48:25",
             "28.12.2021 18:24:02",
@@ -27,5 +28,5 @@ def test_data():
         "Категория": ["Канцтовары", "Дом и ремонт"],
         "Сумма операции": [550, 17454],
     }
-    df = pd.DataFrame(data)
+    df = pd.DataFrame(data_)
     return df
