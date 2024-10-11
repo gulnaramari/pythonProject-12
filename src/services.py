@@ -1,8 +1,10 @@
-from datetime import datetime
 import json
+from datetime import datetime
 from typing import Any
+
 from src.logger import setup_logger
 from src.utils import data_to_list
+
 logger = setup_logger("services", "logs/services.log")
 
 

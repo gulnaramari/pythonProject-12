@@ -4,14 +4,8 @@ from typing import Any
 from dotenv import load_dotenv
 
 from src.logger import setup_logger
-from src.utils import (
-    analyze_dict_user_card,
-    fetch_currency_rates_values,
-    fetch_stock_prices_values,
-    fetch_user_data, data_to_list,
-    greeting_twenty_four_hours,
-    top_user_transactions,
-)
+from src.utils import (analyze_dict_user_card, fetch_currency_rates_values, fetch_stock_prices_values, fetch_user_data,
+                       greeting_twenty_four_hours, top_user_transactions)
 
 with open("../data/user_settings.json", "r") as file:
     user_choice = json.load(file)

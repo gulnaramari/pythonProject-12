@@ -1,12 +1,11 @@
 import os
 from datetime import datetime, timedelta
-from json.decoder import NaN
 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-from src.logger import setup_logger
 
+from src.logger import setup_logger
 
 load_dotenv()
 
@@ -32,7 +31,7 @@ def fetch_user_data(path: str) -> pd.DataFrame:
 
 def data_to_list(path) -> list[dict]:
     """Функция переводит датафрейм в список словарей"""
-    logger.info(f"Beginning of the work...")
+    logger.info("Beginning of the work...")
     try:
         df = pd.read_excel(path)
         list_dict = df.to_dict(orient="records")
@@ -160,7 +159,7 @@ def fetch_stock_prices_values(stocks: list) -> list[dict]:
 
 def transaction_filter(df_data: pd.DataFrame, date: str) -> pd.DataFrame:
     """Функция, по сути, фильтрация датафрейма по заданной дате"""
-    logger.info(f"Beginning of the work...")
+    logger.info("Beginning of the work...")
     date_ = mod_date(date)
     logger.debug(f"End date: {date_}")
     begin_date = date_.replace(day=1)
