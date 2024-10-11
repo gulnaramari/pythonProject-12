@@ -1,9 +1,9 @@
 from datetime import datetime
 import json
 from typing import Any
-from src.logger import setup_logger
-from src.utils import data_to_list
-logger = setup_logger("services", "logs/services.log")
+# from src.logger import setup_logger
+from src.utils import data_to_list, setup_logger
+logger = setup_logger("services", "services.log")
 
 
 def analyze_cashback(year: int, month: int, list_dict: list[dict[str, Any]]):

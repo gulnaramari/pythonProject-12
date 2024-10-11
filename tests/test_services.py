@@ -3,9 +3,6 @@ import pytest
 from src.services import analyze_cashback
 import config
 
-test_list = config.data
-
-
 @pytest.mark.parametrize("year, month, transactions, expected_output", (
     (2020, 5,
         [{"Дата операции": "15.05.2020 14:41:31", "Категория": "Супермаркеты", "Сумма операции": -115.60,
@@ -56,22 +53,23 @@ test_list = config.data
     )
 ))
 def test_analyze_cashback_(year, month, transactions, expected_output):
-    result = analyze_cashback(year, month, test_list)
+    result = analyze_cashback(year, month, transactions)
     assert result == expected_output
 
 
-@pytest.mark.parametrize("year, month, transactions, expected_output", (
-    (2020, 5,
-        [{"Дата операции": "15.05.2020 14:41:31", "Категория": "Супермаркеты", "Сумма операции": -115.60,
-            "Кэшбэк": None},
-         {"Дата операции": "11.05.2020 15:54:32", "Категория": "Аптеки", "Сумма операции": -243.00,
-            "Кэшбэк": None},
-        ],
-        json.dumps({"Супермаркеты": 1.156, "Аптеки": 2.43})
-        )
-    )
+@pytest.mark.parametrize("year, month, transactions, expected_output", [
+    (2020,
+     5,
+    [{"Дата операции": "15.05.2020 14:41:31", "Категория": "Супермаркеты", "Сумма операции": -115.60,
+        "Кэшбэк": None},
+     {"Дата операции": "11.05.2020 15:54:32", "Категория": "Аптеки", "Сумма операции": -243.00,
+        "Кэшбэк": None},
+    ],
+    json.dumps({"Супермаркеты": 1.156, "Аптеки": 2.43}, ensure_ascii=False, indent=4)
+     )
+    ]
 )
 def test_analyze_cashback_empty(year, month, transactions, expected_output):
     """Тестирование функции с пустым кешбэком"""
-    result_ = analyze_cashback(year, month, test_list)
+    result_ = analyze_cashback(year, month, transactions)
     assert result_ == expected_output

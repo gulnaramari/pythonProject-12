@@ -1,21 +1,35 @@
+import logging
 import os
 from datetime import datetime, timedelta
-from json.decoder import NaN
+from typing import Any
 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
-from src.logger import setup_logger
+
+from config import LOGS_DIR
+
+# from src.logger import setup_logger
 
 
 load_dotenv()
-
 API_KEY = os.getenv("API_KEY")
-
 API_KEY_SP = os.getenv("API_KEY_SP")
 
+def setup_logger(name: str, file_logs: str) -> Any:
+    current_log_path = os.path.join(LOGS_DIR, file_logs)
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.DEBUG)
+    file_handler = logging.FileHandler(current_log_path, mode="w")
+    file_handler.setLevel(logging.DEBUG)
+    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s: %(message)s")
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler)
+    return logger
 
-logger = setup_logger("utils", "logs/utils.log")
+
+logger = setup_logger("utils", "utils.log")
 
 
 def fetch_user_data(path: str) -> pd.DataFrame:
@@ -81,7 +95,7 @@ def analyze_dict_user_card(df_data: pd.DataFrame) -> list[dict]:
     """Функция создает словарь с расходами по каждой карте"""
     logger.info("Beginning of the work...")
     filtered_card = df_data[df_data["Номер карты"] != ""]
-    print(filtered_card.head(10))
+
     cards_groupping = (
         filtered_card.loc[df_data["Сумма платежа"] < 0].groupby("Номер карты")["Сумма платежа"].sum().to_dict()
     )
@@ -103,10 +117,10 @@ def top_user_transactions(df_data) -> list[dict]:
     logger.info("Beginning of the work...")
 
     filtered_data = df_data[(df_data["Категория"] != "Переводы") & (df_data["Категория"] != "Пополнения")]
-    print(filtered_data.head(10))
+
 
     top_transactions = filtered_data.sort_values(by="Сумма операции", ascending=True).iloc[:5]
-    print(top_transactions)
+
     result_ = top_transactions.to_dict(orient="records")
 
     top_list = []
@@ -176,18 +190,18 @@ def transaction_filter(df_data: pd.DataFrame, date: str) -> pd.DataFrame:
     return transaction_
 
 
-if __name__ == "__main__":
+
+
+
+if __name__ == "__main__": # pragma: no cover
     result = fetch_user_data(r"../data/operations.xlsx")
     print(result)
 
-if __name__ == "__main__":
     result_expenses_cards = analyze_dict_user_card(fetch_user_data(r"../data/operations.xlsx"))
     print(result_expenses_cards)
 
-if __name__ == "__main__":
     top_ = top_user_transactions(fetch_user_data(r"../data/operations.xlsx"))
     print(top_)
 
-if __name__ == "__main__":
     transaction_res = transaction_filter(fetch_user_data(r"../data/operations.xlsx"), "21.03.2019 17:01:38")
     print(transaction_res)
